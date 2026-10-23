@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spelling Bee Practice 2026</title>
+<style>
+:root{--bg:#fffaf0;--card:#fff;--ink:#2b2416;--mute:#7a6f58;--line:#eadfc4;--acc:#f2a900;--accink:#2b2416;--ok:#1f9d55;--bad:#d64545;--easy:#3aa76d;--mid:#3b82c4;--hard:#c0532f;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17140d;--card:#221e14;--ink:#f5ecd5;--mute:#b3a78a;--line:#3a3322;--acc:#f2b51f;--accink:#17140d;--ok:#4cc47f;--bad:#ff7a7a}}
+:root[data-theme="dark"]{--bg:#17140d;--card:#221e14;--ink:#f5ecd5;--mute:#b3a78a;--line:#3a3322;--acc:#f2b51f;--accink:#17140d;--ok:#4cc47f;--bad:#ff7a7a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",Segoe UI,sans-serif;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 2px}.sub{color:var(--mute);font-size:14px;margin:0 0 14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 14px}
+button.on{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:700}
+button.main{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:700}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px}
+.big{text-align:center}
+.speak{font-size:40px;width:92px;height:92px;border-radius:50%;background:var(--acc);border:0;color:var(--accink)}
+.slow{font-size:14px;margin-left:6px}
+input[type=text]{width:100%;font:inherit;font-size:24px;text-align:center;padding:12px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink);margin:14px 0 10px;letter-spacing:2px}
+.hint{color:var(--mute);font-size:20px;letter-spacing:6px;min-height:30px}
+.fb{min-height:56px;font-size:18px;font-weight:700;margin:8px 0}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+.bar{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin:0 0 12px}.bar i{display:block;height:100%;background:var(--acc);width:0}
+.meta{display:flex;justify-content:space-between;color:var(--mute);font-size:14px;margin-bottom:6px}
+.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.w{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);text-align:left;font-size:16px}
+.w.hide{color:transparent;background:var(--line)}
+.w.wr{border-color:var(--bad)}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;color:#fff}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🐝 Spelling Bee Practice</h1>
+<p class="sub">2026 단어 목록 · Easy 120 · Intermediate 120 · Hard 100</p>
+
+<div class="row" id="levels"></div>
+<div class="row" id="modes">
+<button data-m="quiz" class="on">✏️ 듣고 쓰기</button>
+<button data-m="list">📋 단어 목록</button>
+</div>
+
+<div id="quizBox">
+<div class="row">
+<button id="wrongOnly">틀린 단어만: 꺼짐</button>
+<button id="startBtn" class="main">▶ 새로 시작 (20개)</button>
+</div>
+<div class="card big" id="quiz">
+<div class="meta"><span id="prog">0 / 0</span><span id="score">정답 0</span></div>
+<div class="bar"><i id="barI"></i></div>
+<div><button class="speak" id="say" aria-label="단어 듣기">🔊</button><button class="slow" id="slow">🐢 천천히</button></div>
+<div class="hint" id="hint"></div>
+<input type="text" id="ans" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="철자를 입력하세요">
+<div class="row" style="justify-content:center">
+<button id="hintBtn">💡 힌트</button>
+<button id="check" class="main">확인</button>
+<button id="skip">모르겠어요</button>
+</div>
+<div class="fb" id="fb"></div>
+</div>
+<div class="card hidden big" id="done"></div>
+</div>
+
+<div id="listBox" class="hidden">
+<div class="row">
+<button id="hideBtn">철자 가리기: 꺼짐</button>
+<button id="clearWrong">틀린 단어 지우기</button>
+</div>
+<p class="sub">단어를 누르면 발음이 나와요. 빨간 테두리는 틀렸던 단어예요.</p>
+<div class="list" id="list"></div>
+</div>
+</div>
+
+<script>
+const R={
+Easy:`amuse crab hatch palace starve|author craft heat paw statue|badly data heater plan steady|beak disk heel plot storage|brave dot hero plug strict|breathe dream humor poem string|breed dust hut printer sweat|brick eager item proud switch|cabin envy joint publish tail|cancer faint judge pump thigh|capture fair lab roar throat|caring fame lamp role tone|carsick feather laptop rug truly|cell feature leader ruin trust|chat fence link search unit|chest file load secret user|claw flu locate selfish volume|click force lung share waist|closet frame mental shelter wish|code frank mood shocked wolf|condo future naked shot worm|conduct gear network skull wound|content giant off sneeze wrist|counter grave online speaker yard`,
+Intermediate:`access desire function media screen|account device funeral medical series|adventure digital gene memory shocking|agree discuss generate misery software|amazing disorder generous monument stress|ankle display grateful nuclear structure|ballet doubt growth offense studio|battery download hammer opinion suffer|broadcast dramatic hardware passage support|buttock edition honor patient surgery|candle electric horror performer survive|cattle emotion household pleasure teammate|column encourage idea poetry tension|comedy energy imagine possible together|computer entire improve pregnant transform|concrete envision injury procedure turtle|confuse episode inspire property unique|cottage error internal regret update|courage explore invent reindeer valuable|creative extinct jellyfish release violent|creature faith keyboard resident virtual|curious faucet ladder respect website|currency fountain leopard rhythm whistle|current freedom machine scene wildlife`,
+Hard:`achievement bookshelf compromise determination especially imagination motivation performance publication technique|agriculture celebration concentrate development equipment independence mysterious perimeter publicity technology|altogether celebrity connection diameter exception infection mythical persistence reliable telephone|appearance cellphone conscience difference existence information necessary personnel reputation thermometer|atmosphere cemetery construction disagree expression innovation noticeable photograph responsibility transparent|audience colleague contribute discovery facility intelligence obesity physician significant unusual|authority commercial convenient electricity generation interior observation playwright silhouette variety|automatic communicate cooperate emphasize government invisible occasion pollution spaghetti volunteer|beginning comparable decoration entertainment guarantee magnificent orchestra population suggestion werewolf|biography competition depression environment illustrate mathematics participate possession technical zookeeper`
+};
+const W={};for(const k in R)W[k]=R[k].replace(/\|/g,' ').split(' ').sort();
+W.All=[].concat(W.Easy,W.Intermediate,W.Hard);
+const LV=[['Easy','Easy','--easy'],['Intermediate','Intermediate','--mid'],['Hard','Hard','--hard'],['All','전체','--acc']];
+const $=id=>document.getElementById(id);
+let level='Easy',mode='quiz',wrongOnly=false,hideSp=false,q=[],i=0,sc=0,done=false,wrong=new Set();
+try{wrong=new Set(JSON.parse(localStorage.getItem('sb_wrong')||'[]'))}catch(e){}
+function save(){try{localStorage.setItem('sb_wrong',JSON.stringify([...wrong]))}catch(e){}}
+function speak(w,r){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(w);u.lang='en-US';u.rate=r||0.85;speechSynthesis.speak(u)}catch(e){}}
+function shuffle(a){a=a.slice();for(let j=a.length-1;j>0;j--){const k=Math.floor(Math.random()*(j+1));[a[j],a[k]]=[a[k],a[j]]}return a}
+function renderLevels(){$('levels').innerHTML=LV.map(l=>`<button data-l="${l[0]}" class="${l[0]===level?'on':''}">${l[1]} <small>${W[l[0]].length}</small></button>`).join('');
+$('levels').querySelectorAll('button').forEach(b=>b.onclick=()=>{level=b.dataset.l;renderLevels();mode==='quiz'?start():renderList()})}
+function start(){let pool=W[level];if(wrongOnly){pool=pool.filter(w=>wrong.has(w));if(!pool.length){$('quiz').classList.add('hidden');$('done').classList.remove('hidden');$('done').innerHTML='<h2>틀린 단어가 없어요 🎉</h2><p>이 레벨에서 저장된 틀린 단어가 없어요.</p>';return}}
+q=shuffle(pool).slice(0,20);i=0;sc=0;done=false;$('done').classList.add('hidden');$('quiz').classList.remove('hidden');show()}
+function show(){const w=q[i];$('prog').textContent=(i+1)+' / '+q.length;$('score').textContent='정답 '+sc;$('barI').style.width=(i/q.length*100)+'%';
+$('hint').textContent='_ '.repeat(w.length).trim();$('ans').value='';$('ans').disabled=false;$('ans').style.borderColor='';$('fb').textContent='';$('fb').className='fb';$('check').textContent='확인';done=false;$('ans').focus();speak(w)}
+function check(skip){const w=q[i];if(done){next();return}
+const a=$('ans').value.trim().toLowerCase();
+if(!skip&&!a)return;
+done=true;$('ans').disabled=true;
+if(!skip&&a===w){sc++;wrong.delete(w);$('fb').className='fb ok';$('fb').textContent='✅ 정답! '+w}
+else{wrong.add(w);$('fb').className='fb bad';$('fb').innerHTML='❌ 정답: <span style="letter-spacing:3px">'+w+'</span>'}
+save();$('score').textContent='정답 '+sc;$('check').textContent=i===q.length-1?'결과 보기':'다음 ▶'}
+function next(){i++;if(i>=q.length){finish();return}show()}
+function finish(){$('quiz').classList.add('hidden');$('done').classList.remove('hidden');$('barI').style.width='100%';
+const p=Math.round(sc/q.length*100);$('done').innerHTML='<h2>'+(p>=80?'🏆 훌륭해요!':p>=50?'👍 잘했어요!':'💪 조금만 더!')+'</h2><p style="font-size:28px;margin:6px 0">'+sc+' / '+q.length+'</p><p class="sub">틀린 단어는 자동 저장돼요. “틀린 단어만”으로 다시 연습해 보세요.</p><button class="main" id="again">다시 하기</button>';$('again').onclick=start}
+function renderList(){$('list').innerHTML=W[level].map(w=>`<button class="w ${hideSp?'hide':''} ${wrong.has(w)?'wr':''}" data-w="${w}">${w}</button>`).join('');
+$('list').querySelectorAll('button').forEach(b=>b.onclick=()=>{speak(b.dataset.w);b.classList.remove('hide')})}
+$('say').onclick=()=>speak(q[i]);$('slow').onclick=()=>speak(q[i],0.45);
+$('check').onclick=()=>check(false);$('skip').onclick=()=>{if(!done)check(true)};
+$('ans').addEventListener('keydown',e=>{if(e.key==='Enter')check(false)});
+$('hintBtn').onclick=()=>{if(done)return;const w=q[i];$('hint').textContent=w[0]+' '+'_ '.repeat(w.length-1).trim()};
+$('startBtn').onclick=start;
+$('wrongOnly').onclick=()=>{wrongOnly=!wrongOnly;$('wrongOnly').textContent='틀린 단어만: '+(wrongOnly?'켜짐':'꺼짐');$('wrongOnly').classList.toggle('on',wrongOnly);start()};
+$('hideBtn').onclick=()=>{hideSp=!hideSp;$('hideBtn').textContent='철자 가리기: '+(hideSp?'켜짐':'꺼짐');$('hideBtn').classList.toggle('on',hideSp);renderList()};
+$('clearWrong').onclick=()=>{wrong.clear();save();renderList()};
+$('modes').querySelectorAll('button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;$('modes').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+$('quizBox').classList.toggle('hidden',mode!=='quiz');$('listBox').classList.toggle('hidden',mode!=='list');mode==='quiz'?start():renderList()});
+renderLevels();start();
+</script>
+</body>
+</html>
