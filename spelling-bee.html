@@ -33,12 +33,18 @@ input[type=text]{width:100%;font:inherit;font-size:24px;text-align:center;paddin
 .w.wr{border-color:var(--bad)}
 .tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;color:#fff}
 .hidden{display:none}
+.warn{background:#fff3cd;color:#664d03;border:1px solid #f0d58a;border-radius:14px;padding:12px 14px;margin:0 0 12px;font-size:14px}
+.warn button{font-size:14px;padding:8px 12px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .warn{background:#3a3016;color:#f5e2a8;border-color:#5a4a1e}}
+:root[data-theme="dark"] .warn{background:#3a3016;color:#f5e2a8;border-color:#5a4a1e}
+button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 </style>
 </head>
 <body>
 <div class="wrap">
 <h1>🐝 Spelling Bee Practice</h1>
 <p class="sub">2026 단어 목록 · Easy 120 · Intermediate 120 · Hard 100</p>
+<div id="ttsWarn" class="warn hidden" role="alert"></div>
 
 <div class="row" id="levels"></div>
 <div class="row" id="modes">
@@ -90,14 +96,82 @@ const $=id=>document.getElementById(id);
 let level='Easy',mode='quiz',wrongOnly=false,hideSp=false,q=[],i=0,sc=0,done=false,wrong=new Set();
 try{wrong=new Set(JSON.parse(localStorage.getItem('sb_wrong')||'[]'))}catch(e){}
 function save(){try{localStorage.setItem('sb_wrong',JSON.stringify([...wrong]))}catch(e){}}
-function speak(w,r){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(w);u.lang='en-US';u.rate=r||0.85;speechSynthesis.speak(u)}catch(e){}}
+/* ===== 발음 재생 (안드로이드·갤럭시 호환 개선) ===== */
+const TTS='speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+const UA=navigator.userAgent;
+const IS_ANDROID=/Android/i.test(UA);
+const IN_APP=/KAKAOTALK|NAVER\(|Instagram|FBAN|FBAV|Line\/|DaumApps|; wv\)/i.test(UA);
+const IS_KAKAO=/KAKAOTALK/i.test(UA);
+let voices=[],unlocked=false,ttsOk=false,speakSeq=0;
+function loadVoices(){if(TTS){try{voices=speechSynthesis.getVoices()||[]}catch(e){voices=[]}}}
+if(TTS){loadVoices();try{speechSynthesis.addEventListener('voiceschanged',loadVoices)}catch(e){speechSynthesis.onvoiceschanged=loadVoices}}
+function pickVoice(){
+  if(!voices.length)loadVoices();
+  const L=v=>(v.lang||'').replace('_','-').toLowerCase();
+  return voices.find(v=>L(v)==='en-us'&&/google/i.test(v.name))
+      ||voices.find(v=>L(v)==='en-us'&&v.localService)
+      ||voices.find(v=>L(v)==='en-us')
+      ||voices.find(v=>/^en/i.test(v.lang||''))||null;
+}
+function unlock(){
+  if(unlocked)return;unlocked=true;
+  // 첫 터치 때 빈 발화로 엔진을 깨워 둠 (안드로이드 Chrome 대비)
+  if(TTS){try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}catch(e){}}
+}
+document.addEventListener('pointerdown',unlock,{capture:true});
+document.addEventListener('keydown',unlock,{capture:true});
+function openExternal(){
+  const url=location.href;
+  if(IS_KAKAO){location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(url);return}
+  if(IS_ANDROID){location.href='intent://'+url.replace(/^https?:\/\//,'')+'#Intent;scheme=https;package=com.android.chrome;end';return}
+  window.open(url,'_blank');
+}
+function ttsWarn(){
+  const box=$('ttsWarn');if(!box||!box.classList.contains('hidden'))return;
+  if(IN_APP){
+    box.innerHTML='🔇 앱 안에서 열린 화면에서는 발음이 나오지 않을 수 있어요.<br>아래 버튼을 누르거나, 오른쪽 위 메뉴에서 <b>“다른 브라우저로 열기”</b>를 눌러 Chrome으로 열어 주세요.<div class="row" style="margin:10px 0 0"><button class="main" id="openExt">Chrome으로 열기</button><button id="closeWarn">닫기</button></div>';
+  }else if(!TTS){
+    box.innerHTML='🔇 이 브라우저는 발음 기능을 지원하지 않아요. Chrome이나 Safari로 열어 주세요.<div class="row" style="margin:10px 0 0"><button class="main" id="openExt">Chrome으로 열기</button><button id="closeWarn">닫기</button></div>';
+  }else{
+    box.innerHTML='🔇 발음이 들리지 않나요? 다음을 확인해 주세요.<ol style="margin:6px 0 0;padding-left:20px"><li>휴대폰 <b>미디어 볼륨</b>이 켜져 있는지</li><li>삼성 인터넷·카카오톡이 아닌 <b>Chrome</b>으로 열었는지</li><li>설정 → 일반 → <b>글자 읽어주기(TTS)</b> → 기본 엔진을 <b>Google</b>로 바꾸고, 영어(미국) 음성 데이터를 설치했는지</li></ol><div class="row" style="margin:10px 0 0"><button id="closeWarn">닫기</button></div>';
+  }
+  box.classList.remove('hidden');
+  const o=$('openExt');if(o)o.onclick=openExternal;
+  $('closeWarn').onclick=()=>box.classList.add('hidden');
+}
+function speak(w,r,auto){
+  if(!w)return;
+  if(!TTS){ttsWarn();return}
+  if(auto&&!unlocked)return;              // 터치 전 자동 재생은 브라우저가 막으므로 건너뜀
+  const my=++speakSeq;
+  try{speechSynthesis.cancel()}catch(e){}
+  setTimeout(()=>{                          // cancel 직후 speak가 무시되는 안드로이드 버그 회피
+    if(my!==speakSeq)return;
+    try{
+      const u=new SpeechSynthesisUtterance(w);
+      const v=pickVoice();
+      if(v)u.voice=v;
+      u.lang=v?v.lang:'en-US';
+      u.rate=r||0.85;u.pitch=1;u.volume=1;
+      let started=false;
+      u.onstart=()=>{started=true;ttsOk=true};
+      u.onerror=e=>{if(my===speakSeq&&!['interrupted','canceled'].includes(e.error))ttsWarn()};
+      speechSynthesis.resume();             // 일시정지 상태로 멈춘 엔진 깨우기
+      speechSynthesis.speak(u);
+      // 아무 오류 없이 조용히 실패하는 기기 감지 (영어 음성 미설치 등)
+      setTimeout(()=>{if(my===speakSeq&&!started&&!ttsOk&&!speechSynthesis.speaking)ttsWarn()},2500);
+    }catch(e){ttsWarn()}
+  },IS_ANDROID?250:60);
+}
+if(IN_APP||!TTS)window.addEventListener('load',()=>setTimeout(ttsWarn,300));
+
 function shuffle(a){a=a.slice();for(let j=a.length-1;j>0;j--){const k=Math.floor(Math.random()*(j+1));[a[j],a[k]]=[a[k],a[j]]}return a}
 function renderLevels(){$('levels').innerHTML=LV.map(l=>`<button data-l="${l[0]}" class="${l[0]===level?'on':''}">${l[1]} <small>${W[l[0]].length}</small></button>`).join('');
 $('levels').querySelectorAll('button').forEach(b=>b.onclick=()=>{level=b.dataset.l;renderLevels();mode==='quiz'?start():renderList()})}
 function start(){let pool=W[level];if(wrongOnly){pool=pool.filter(w=>wrong.has(w));if(!pool.length){$('quiz').classList.add('hidden');$('done').classList.remove('hidden');$('done').innerHTML='<h2>틀린 단어가 없어요 🎉</h2><p>이 레벨에서 저장된 틀린 단어가 없어요.</p>';return}}
 q=shuffle(pool).slice(0,20);i=0;sc=0;done=false;$('done').classList.add('hidden');$('quiz').classList.remove('hidden');show()}
 function show(){const w=q[i];$('prog').textContent=(i+1)+' / '+q.length;$('score').textContent='정답 '+sc;$('barI').style.width=(i/q.length*100)+'%';
-$('hint').textContent='_ '.repeat(w.length).trim();$('ans').value='';$('ans').disabled=false;$('ans').style.borderColor='';$('fb').textContent='';$('fb').className='fb';$('check').textContent='확인';done=false;$('ans').focus();speak(w)}
+$('hint').textContent='_ '.repeat(w.length).trim();$('ans').value='';$('ans').disabled=false;$('ans').style.borderColor='';$('fb').textContent='';$('fb').className='fb';$('check').textContent='확인';done=false;$('ans').focus();speak(w,0,true)}
 function check(skip){const w=q[i];if(done){next();return}
 const a=$('ans').value.trim().toLowerCase();
 if(!skip&&!a)return;
